@@ -163,6 +163,8 @@ jobs:
       run: uv run python scripts/check_docs_module_refs.py
 
     - name: Fetch canonical release tags for API compatibility audit
+      # Forks do not inherit upstream tags, even with fetch-depth: 0.
+      # Keep the stable-release baseline rather than skipping the audit.
       run: git fetch https://github.com/teng-lin/notebooklm-py.git 'refs/tags/*:refs/tags/*'
 
     - name: Audit public API compatibility
