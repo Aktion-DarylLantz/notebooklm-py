@@ -5,10 +5,12 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+import shlex
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 import notebooklm.config as notebooklm_config
 
@@ -1122,3 +1124,39 @@ def test_latest_release_tag_skips_prereleases_and_nonrelease(script, tmp_path):
     git("tag", "v0.8.0")  # final stable
 
     assert script.latest_release_tag(tmp_path) == "v0.8.0"
+
+
+def test_quality_workflow_fetches_canonical_tags_before_api_audit():
+    workflow = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    )
+    steps = workflow["jobs"]["quality"]["steps"]
+    checkout_index = next(
+        index
+        for index, step in enumerate(steps)
+        if str(step.get("uses", "")).startswith("actions/checkout@")
+    )
+    fetch_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Fetch canonical release tags for API compatibility audit"
+    )
+    audit_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Audit public API compatibility"
+    )
+
+    assert checkout_index < fetch_index < audit_index
+    assert steps[checkout_index]["with"]["fetch-depth"] == 0
+    assert shlex.split(steps[fetch_index]["run"]) == [
+        "git",
+        "fetch",
+        "https://github.com/teng-lin/notebooklm-py.git",
+        "refs/tags/*:refs/tags/*",
+    ]
+    assert not steps[fetch_index].get("continue-on-error", False)
+    assert "if" not in steps[fetch_index]
+    assert steps[audit_index]["run"] == (
+        "uv run python scripts/audit_public_api_compat.py --check-stale"
+    )
