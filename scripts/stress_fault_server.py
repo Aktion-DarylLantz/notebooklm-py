@@ -369,6 +369,7 @@ def _run_cli(config: RunConfig, registry: Registry) -> dict[str, Any]:
             raise
         return report
     finally:
+        loop.run_until_complete(asyncio.sleep(0))
         pending = asyncio.all_tasks(loop)
         if pending and report is not None:
             report["failures"].append(f"CLI found leaked tasks after run: {len(pending)}")

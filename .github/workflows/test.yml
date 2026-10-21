@@ -162,6 +162,9 @@ jobs:
       # a real module (rare historical mentions are allowlisted, shrink-only).
       run: uv run python scripts/check_docs_module_refs.py
 
+    - name: Fetch canonical release tags for API compatibility audit
+      run: git fetch https://github.com/teng-lin/notebooklm-py.git 'refs/tags/*:refs/tags/*'
+
     - name: Audit public API compatibility
       # ``--check-stale`` also fails when an allowlist entry matches no break
       # against the baseline (it is already in the baseline). This forces the

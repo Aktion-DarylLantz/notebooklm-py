@@ -343,6 +343,28 @@ def test_cli_reports_a_leaked_child_even_when_it_cancels_cleanly() -> None:
     assert cleaned
 
 
+def test_cli_allows_deferred_cleanup_before_checking_for_leaked_tasks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cleaned = False
+
+    async def run(*_args: Any) -> dict[str, Any]:
+        async def finish_cleanup() -> None:
+            nonlocal cleaned
+            await asyncio.sleep(0)
+            cleaned = True
+
+        asyncio.get_running_loop().call_soon(
+            lambda: asyncio.create_task(finish_cleanup(), name="deferred-cleanup")
+        )
+        return {"failures": [], "summary": {"ok": True}}
+
+    monkeypatch.setattr(stress, "run_stress", run)
+    report = stress._run_cli(stress.RunConfig(iterations=1), {})
+    assert report["summary"]["ok"]
+    assert cleaned
+
+
 def test_cli_records_unhandled_background_failure() -> None:
     async def fails() -> None:
         raise RuntimeError("orphaned handler failed")
